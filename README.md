@@ -2,6 +2,8 @@
 
 A Model Context Protocol (MCP) server that provides tools for interacting with Linear's API, enabling AI agents to manage issues, projects, and teams programmatically through the Linear platform.
 
+<a href="https://glama.ai/mcp/servers/71fqw0uqmx"><img width="380" height="200" src="https://glama.ai/mcp/servers/71fqw0uqmx/badge" alt="Linear Server MCP server" /></a>
+
 ## Features
 
 - **Issue Management**
