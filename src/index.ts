@@ -147,10 +147,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: "object",
         properties: {
-          teamId: {
-            type: "string",
-            description: "Filter by team ID (optional)",
-          },
           first: {
             type: "number",
             description: "Number of projects to return (default: 50)",
@@ -190,6 +186,38 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["issueId"],
       },
     },
+    {
+      name: "get_project",
+      description: "Get detailed information about a project",
+      inputSchema: {
+        type: "object",
+        properties: {
+          projectId: {
+            type: "string",
+            description: "Project ID",
+          },
+        },
+        required: ["projectId"],
+      },
+    },
+    {
+      name: "search_projects",
+      description: "Search for projects using a text query",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Search query text",
+          },
+          first: {
+            type: "number",
+            description: "Number of results to return (default: 50)",
+          },
+        },
+        required: ["query"],
+      },
+    },
   ],
 }));
 
@@ -219,7 +247,6 @@ type UpdateIssueArgs = {
 };
 
 type ListProjectsArgs = {
-  teamId?: string;
   first?: number;
 };
 
@@ -230,6 +257,15 @@ type SearchIssuesArgs = {
 
 type GetIssueArgs = {
   issueId: string;
+};
+
+type GetProjectArgs = {
+  projectId: string;
+};
+
+type SearchProjectsArgs = {
+  query: string;
+  first?: number;
 };
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -350,17 +386,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "list_projects": {
         const args = request.params.arguments as unknown as ListProjectsArgs;
         const filter: Record<string, any> = {};
-        if (args?.teamId) filter.team = { id: { eq: args.teamId } };
 
         const query = await linearClient.projects({
           first: args?.first ?? 50,
           filter,
         });
 
+        if (!query?.nodes) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify([], null, 2),
+              },
+            ],
+          };
+        }
+
         const projects = await Promise.all(
-          (query as any).nodes.map(async (project: any) => {
+          query.nodes.map(async (project: any) => {
             const teamsConnection = await project.teams;
-            const teams = teamsConnection ? (teamsConnection as any).nodes : [];
+            const teams = teamsConnection?.nodes ?? [];
             return {
               id: project.id,
               name: project.name,
@@ -536,6 +582,231 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: JSON.stringify(formattedIssue, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_project": {
+        const args = request.params.arguments as unknown as GetProjectArgs;
+        if (!args?.projectId) {
+          throw new Error("Project ID is required");
+        }
+
+        const project = await linearClient.project(args.projectId);
+        if (!project) {
+          throw new Error(`Project ${args.projectId} not found`);
+        }
+
+        // Fetch all related data
+        const [
+          creator,
+          lead,
+          status,
+          teamsResult,
+          membersResult,
+          issuesResult,
+          milestonesResult,
+          projectUpdatesResult,
+        ] = await Promise.all([
+          project.creator,
+          project.lead,
+          project.status,
+          project.teams(),
+          project.members(),
+          project.issues(),
+          project.projectMilestones(),
+          project.projectUpdates(),
+        ]);
+
+        const formattedProject = {
+          id: project.id,
+          name: project.name,
+          description: project.description,
+          content: project.content,
+          slugId: project.slugId,
+          icon: project.icon,
+          color: project.color,
+          
+          // Progress and metrics
+          progress: project.progress,
+          scope: project.scope,
+          state: project.state,
+          priority: project.priority,
+          health: project.health,
+          
+          // Progress history
+          completedIssueCountHistory: project.completedIssueCountHistory,
+          completedScopeHistory: project.completedScopeHistory,
+          inProgressScopeHistory: project.inProgressScopeHistory,
+          issueCountHistory: project.issueCountHistory,
+          scopeHistory: project.scopeHistory,
+          
+          // Dates
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+          startDate: project.startDate,
+          targetDate: project.targetDate,
+          startedAt: project.startedAt,
+          completedAt: project.completedAt,
+          canceledAt: project.canceledAt,
+          healthUpdatedAt: project.healthUpdatedAt,
+          
+          // Related entities
+          creator: creator ? {
+            id: creator.id,
+            name: creator.name,
+            email: creator.email,
+          } : null,
+          lead: lead ? {
+            id: lead.id,
+            name: lead.name,
+            email: lead.email,
+          } : null,
+          status: status ? {
+            id: status.id,
+            name: status.name,
+            type: status.type,
+            color: status.color,
+          } : null,
+          
+          // Collections
+          teams: teamsResult?.nodes ? await Promise.all(
+            teamsResult.nodes.map(async (team) => ({
+              id: team.id,
+              name: team.name,
+              key: team.key,
+            }))
+          ) : [],
+          members: membersResult?.nodes ? await Promise.all(
+            membersResult.nodes.map(async (member) => ({
+              id: member.id,
+              name: member.name,
+              email: member.email,
+            }))
+          ) : [],
+          issues: issuesResult?.nodes ? await Promise.all(
+            issuesResult.nodes.map(async (issue) => {
+              const state = await issue.state;
+              return {
+                id: issue.id,
+                title: issue.title,
+                identifier: issue.identifier,
+                status: state ? await state.name : "Unknown",
+                priority: issue.priority,
+              };
+            })
+          ) : [],
+          milestones: milestonesResult?.nodes ? await Promise.all(
+            milestonesResult.nodes.map(async (milestone) => ({
+              id: milestone.id,
+              name: milestone.name,
+              targetDate: milestone.targetDate,
+            }))
+          ) : [],
+          updates: projectUpdatesResult?.nodes ? await Promise.all(
+            projectUpdatesResult.nodes.map(async (update) => ({
+              id: update.id,
+              health: update.health,
+              createdAt: update.createdAt,
+              updatedAt: update.updatedAt,
+            }))
+          ) : [],
+          
+          // Settings and flags
+          url: project.url,
+          slackNewIssue: project.slackNewIssue,
+          slackIssueComments: project.slackIssueComments,
+          slackIssueStatuses: project.slackIssueStatuses,
+          sortOrder: project.sortOrder,
+          trashed: project.trashed,
+          archivedAt: project.archivedAt,
+          autoArchivedAt: project.autoArchivedAt,
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(formattedProject, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "search_projects": {
+        const args = request.params.arguments as unknown as SearchProjectsArgs;
+        if (!args?.query) {
+          throw new Error("Search query is required");
+        }
+
+        const searchResults = await linearClient.searchProjects(args.query, {
+          first: args?.first ?? 50,
+        });
+
+        if (!searchResults?.nodes) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify([], null, 2),
+              },
+            ],
+          };
+        }
+
+        const formattedResults = await Promise.all(
+          searchResults.nodes.map(async (result) => {
+            const status = await result.status;
+            const lead = await result.lead;
+            return {
+              id: result.id,
+              name: result.name,
+              description: result.description,
+              content: result.content,
+              icon: result.icon,
+              color: result.color,
+              
+              // Status and progress
+              status: status ? {
+                name: status.name,
+                type: status.type,
+                color: status.color,
+              } : null,
+              lead: lead ? {
+                id: lead.id,
+                name: lead.name,
+              } : null,
+              progress: result.progress,
+              scope: result.scope,
+              state: result.state,
+              priority: result.priority,
+              health: result.health,
+              
+              // Dates
+              startDate: result.startDate,
+              targetDate: result.targetDate,
+              startedAt: result.startedAt,
+              completedAt: result.completedAt,
+              canceledAt: result.canceledAt,
+              createdAt: result.createdAt,
+              updatedAt: result.updatedAt,
+              
+              // URLs and identifiers
+              url: result.url,
+              slugId: result.slugId,
+              
+              // Search metadata
+              metadata: result.metadata,
+            };
+          })
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(formattedResults, null, 2),
             },
           ],
         };
