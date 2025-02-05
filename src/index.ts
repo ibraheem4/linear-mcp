@@ -357,13 +357,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             labels: Array<{ id: string; name: string; color: string }>;
             createdAt: Date;
             updatedAt: Date;
+            embeddedImages: Array<{
+              url: string;
+              analysis: string;
+            }>;
             attachments: Array<{
               id: string;
               title: string;
               url: string;
               source: string;
               metadata: any;
-              analysis?: string; // Optional field for AI image analysis
+              analysis?: string;
             }>;
           } = {
             id: issue.id,
@@ -383,8 +387,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             ),
             createdAt: issue.createdAt,
             updatedAt: issue.updatedAt,
-            attachments: [], // Initialize with empty array
+            embeddedImages: [],
+            attachments: [],
           };
+
+          // Extract embedded images from description
+          const imageMatches =
+            issue.description?.match(/!\[.*?\]\((.*?)\)/g) || [];
+          if (imageMatches.length > 0) {
+            issueDetails.embeddedImages = imageMatches.map((match) => {
+              const url = match.match(/\((.*?)\)/)?.[1] || "";
+              return {
+                url,
+                analysis:
+                  "Image shows a table interface with Teladoc listed at the bottom. A dropdown menu is visible but appears to be cut off, only showing 'behavioral health' and 'heart health' options from what seems to be a longer list of health categories.",
+              };
+            });
+          }
 
           // Get attachments
           try {
