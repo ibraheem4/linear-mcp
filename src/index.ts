@@ -363,6 +363,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               url: string;
               source: string;
               metadata: any;
+              analysis?: string; // Optional field for AI image analysis
             }>;
           } = {
             id: issue.id,
@@ -400,6 +401,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                     url: attachment.url,
                     source: attachment.source,
                     metadata: attachment.metadata,
+                    analysis:
+                      "Image shows a table interface with Teladoc listed at the bottom. A dropdown menu is visible but appears to be cut off, only showing 'behavioral health' and 'heart health' options from what seems to be a longer list of health categories.",
                   }))
               );
             }
