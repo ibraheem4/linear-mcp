@@ -340,6 +340,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const state = await issue.state;
           const assignee = await issue.assignee;
           const team = await issue.team;
+          const branchName = await issue.branchName
           const labelsConnection = await issue.labels;
           const labelNodes = labelsConnection
             ? (labelsConnection as any)?.nodes || []
@@ -361,6 +362,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               url: string;
               analysis: string;
             }>;
+            branchName: string;
             attachments: Array<{
               id: string;
               title: string;
@@ -387,6 +389,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             ),
             createdAt: issue.createdAt,
             updatedAt: issue.updatedAt,
+            branchName,
             embeddedImages: [],
             attachments: [],
           };
