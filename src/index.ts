@@ -172,6 +172,38 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
       },
     },
+    {
+      name: "search_issues",
+      description: "Search for issues using a text query",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Search query text",
+          },
+          first: {
+            type: "number",
+            description: "Number of results to return (default: 50)",
+          },
+        },
+        required: ["query"],
+      },
+    },
+    {
+      name: "get_issue",
+      description: "Get detailed information about a specific issue",
+      inputSchema: {
+        type: "object",
+        properties: {
+          issueId: {
+            type: "string",
+            description: "Issue ID",
+          },
+        },
+        required: ["issueId"],
+      },
+    },
   ],
 }));
 
@@ -205,8 +237,9 @@ type ListProjectsArgs = {
   first?: number;
 };
 
-type GetIssueArgs = {
-  issueId: string;
+type SearchIssuesArgs = {
+  query: string;
+  first?: number;
 };
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -475,6 +508,166 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: JSON.stringify(projects, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "search_issues": {
+        const args = request.params.arguments as unknown as SearchIssuesArgs;
+        if (!args?.query) {
+          throw new Error("Search query is required");
+        }
+
+        const searchResults = await linearClient.searchIssues(args.query, {
+          first: args?.first ?? 50,
+        });
+
+        const formattedResults = await Promise.all(
+          searchResults.nodes.map(async (result) => {
+            const state = await result.state;
+            const assignee = await result.assignee;
+            return {
+              id: result.id,
+              title: result.title,
+              status: state ? await state.name : "Unknown",
+              assignee: assignee ? assignee.name : "Unassigned",
+              priority: result.priority,
+              url: result.url,
+              metadata: result.metadata,
+            };
+          })
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(formattedResults, null, 2),
+            },
+          ],
+        };
+      }
+
+      case "get_issue": {
+        const args = request.params.arguments as unknown as GetIssueArgs;
+        if (!args?.issueId) {
+          throw new Error("Issue ID is required");
+        }
+
+        const issue = await linearClient.issue(args.issueId);
+        if (!issue) {
+          throw new Error(`Issue ${args.issueId} not found`);
+        }
+
+        // Fetch all related data
+        const [
+          state,
+          assignee,
+          creator,
+          team,
+          project,
+          parent,
+          cycle,
+          labels,
+          comments,
+          attachments,
+        ] = await Promise.all([
+          issue.state,
+          issue.assignee,
+          issue.creator,
+          issue.team,
+          issue.project,
+          issue.parent,
+          issue.cycle,
+          issue.labels(),
+          issue.comments(),
+          issue.attachments(),
+        ]);
+
+        const formattedIssue = {
+          id: issue.id,
+          identifier: issue.identifier,
+          title: issue.title,
+          description: issue.description,
+          priority: issue.priority,
+          priorityLabel: issue.priorityLabel,
+          status: state ? await state.name : "Unknown",
+          url: issue.url,
+          
+          // Dates
+          createdAt: issue.createdAt,
+          updatedAt: issue.updatedAt,
+          startedAt: issue.startedAt,
+          completedAt: issue.completedAt,
+          canceledAt: issue.canceledAt,
+          dueDate: issue.dueDate,
+          
+          // Related entities
+          assignee: assignee ? {
+            id: assignee.id,
+            name: assignee.name,
+            email: assignee.email,
+          } : null,
+          creator: creator ? {
+            id: creator.id,
+            name: creator.name,
+            email: creator.email,
+          } : null,
+          team: team ? {
+            id: team.id,
+            name: team.name,
+            key: team.key,
+          } : null,
+          project: project ? {
+            id: project.id,
+            name: project.name,
+            state: project.state,
+          } : null,
+          parent: parent ? {
+            id: parent.id,
+            title: parent.title,
+            identifier: parent.identifier,
+          } : null,
+          cycle: cycle ? {
+            id: cycle.id,
+            name: cycle.name,
+            number: cycle.number,
+          } : null,
+          
+          // Collections
+          labels: await Promise.all(labels.nodes.map(async (label) => ({
+            id: label.id,
+            name: label.name,
+            color: label.color,
+          }))),
+          comments: await Promise.all(comments.nodes.map(async (comment) => ({
+            id: comment.id,
+            body: comment.body,
+            createdAt: comment.createdAt,
+          }))),
+          attachments: await Promise.all(attachments.nodes.map(async (attachment) => ({
+            id: attachment.id,
+            title: attachment.title,
+            url: attachment.url,
+          }))),
+          
+          // Additional metadata
+          estimate: issue.estimate,
+          customerTicketCount: issue.customerTicketCount,
+          previousIdentifiers: issue.previousIdentifiers,
+          branchName: issue.branchName,
+          archivedAt: issue.archivedAt,
+          autoArchivedAt: issue.autoArchivedAt,
+          autoClosedAt: issue.autoClosedAt,
+          trashed: issue.trashed,
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(formattedIssue, null, 2),
             },
           ],
         };
