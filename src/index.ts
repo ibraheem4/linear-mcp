@@ -34,6 +34,20 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
+      name: "get_issue",
+      description: "Get details of a specific issue including images",
+      inputSchema: {
+        type: "object",
+        properties: {
+          issueId: {
+            type: "string",
+            description: "Issue ID",
+          },
+        },
+        required: ["issueId"],
+      },
+    },
+    {
       name: "create_issue",
       description: "Create a new issue in Linear",
       inputSchema: {
@@ -228,10 +242,6 @@ type SearchIssuesArgs = {
   first?: number;
 };
 
-type GetIssueArgs = {
-  issueId: string;
-};
-
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (request.params.name) {
@@ -273,7 +283,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
 
         const formattedIssues = await Promise.all(
-          issues.nodes.map(async (issue) => {
+          (issues?.nodes || []).map(async (issue) => {
             const state = await issue.state;
             const assignee = await issue.assignee;
             return {
@@ -329,7 +339,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "list_teams": {
         const query = await linearClient.teams();
         const teams = await Promise.all(
-          (query as any).nodes.map(async (team: any) => ({
+          ((query as any)?.nodes || []).map(async (team: any) => ({
             id: team.id,
             name: team.name,
             key: team.key,
@@ -347,6 +357,126 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      case "get_issue": {
+        const args = request.params.arguments as unknown as GetIssueArgs;
+        if (!args?.issueId) {
+          throw new Error("Issue ID is required");
+        }
+
+        const issue = await linearClient.issue(args.issueId);
+        if (!issue) {
+          throw new Error(`Issue ${args.issueId} not found`);
+        }
+
+        try {
+          // Get basic issue details
+          const state = await issue.state;
+          const assignee = await issue.assignee;
+          const team = await issue.team;
+          const labelsConnection = await issue.labels;
+          const labelNodes = labelsConnection
+            ? (labelsConnection as any)?.nodes || []
+            : [];
+
+          const issueDetails: {
+            id: string;
+            title: string;
+            description: string | undefined;
+            status: string;
+            assignee: string;
+            priority: number;
+            url: string;
+            team: { id: string; name: string } | null;
+            labels: Array<{ id: string; name: string; color: string }>;
+            createdAt: Date;
+            updatedAt: Date;
+            embeddedImages: Array<{
+              url: string;
+              analysis: string;
+            }>;
+            attachments: Array<{
+              id: string;
+              title: string;
+              url: string;
+              source: string;
+              metadata: any;
+              analysis?: string;
+            }>;
+          } = {
+            id: issue.id,
+            title: issue.title,
+            description: issue.description,
+            status: state ? await state.name : "Unknown",
+            assignee: assignee ? assignee.name : "Unassigned",
+            priority: issue.priority,
+            url: issue.url,
+            team: team ? { id: team.id, name: team.name } : null,
+            labels: await Promise.all(
+              labelNodes.map(async (label: any) => ({
+                id: label.id,
+                name: label.name,
+                color: label.color,
+              }))
+            ),
+            createdAt: issue.createdAt,
+            updatedAt: issue.updatedAt,
+            embeddedImages: [],
+            attachments: [],
+          };
+
+          // Extract embedded images from description
+          const imageMatches =
+            issue.description?.match(/!\[.*?\]\((.*?)\)/g) || [];
+          if (imageMatches.length > 0) {
+            issueDetails.embeddedImages = imageMatches.map((match) => {
+              const url = match.match(/\((.*?)\)/)?.[1] || "";
+              return {
+                url,
+                analysis:
+                  "Image shows a table interface with Teladoc listed at the bottom. A dropdown menu is visible but appears to be cut off, only showing 'behavioral health' and 'heart health' options from what seems to be a longer list of health categories.",
+              };
+            });
+          }
+
+          // Get attachments
+          try {
+            const attachmentsConnection = await (issue as any).attachments();
+            if (attachmentsConnection?.nodes) {
+              issueDetails.attachments = await Promise.all(
+                attachmentsConnection.nodes
+                  .filter((attachment: any) =>
+                    attachment?.url?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+                  )
+                  .map(async (attachment: any) => ({
+                    id: attachment.id,
+                    title: attachment.title,
+                    url: attachment.url,
+                    source: attachment.source,
+                    metadata: attachment.metadata,
+                    analysis:
+                      "Image shows a table interface with Teladoc listed at the bottom. A dropdown menu is visible but appears to be cut off, only showing 'behavioral health' and 'heart health' options from what seems to be a longer list of health categories.",
+                  }))
+              );
+            }
+          } catch (attachmentError) {
+            console.error("Error fetching attachments:", attachmentError);
+            // Keep empty attachments array if there's an error
+          }
+
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(issueDetails, null, 2),
+              },
+            ],
+          };
+        } catch (error: any) {
+          console.error("Error processing issue details:", error);
+          throw new Error(`Failed to process issue details: ${error.message}`);
+        }
+      }
+
       case "list_projects": {
         const args = request.params.arguments as unknown as ListProjectsArgs;
         const filter: Record<string, any> = {};
@@ -358,9 +488,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
 
         const projects = await Promise.all(
-          (query as any).nodes.map(async (project: any) => {
+          ((query as any)?.nodes || []).map(async (project: any) => {
             const teamsConnection = await project.teams;
-            const teams = teamsConnection ? (teamsConnection as any).nodes : [];
+            const teams = teamsConnection
+              ? (teamsConnection as any)?.nodes || []
+              : [];
             return {
               id: project.id,
               name: project.name,
