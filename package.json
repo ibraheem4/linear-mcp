@@ -1,27 +1,46 @@
 {
-  "name": "linear-server",
-  "version": "0.1.0",
-  "description": "A Model Context Protocol server",
-  "private": true,
+  "name": "@ibraheem4/linear-mcp",
+  "version": "37.0.2",
+  "description": "A Linear MCP server for interacting with Linear's API",
   "type": "module",
   "bin": {
-    "linear-server": "./build/index.js"
+    "@ibraheem4/linear-mcp": "./build/index.js",
+    "linear-mcp": "./build/index.js"
   },
   "files": [
     "build"
   ],
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "build": "tsc && chmod +x build/index.js",
     "prepare": "npm run build",
     "watch": "tsc --watch",
     "inspector": "npx @modelcontextprotocol/inspector build/index.js"
   },
   "dependencies": {
     "@linear/sdk": "37.0.0",
-    "@modelcontextprotocol/sdk": "0.6.0"
+    "@modelcontextprotocol/sdk": "0.6.0",
+    "dotenv": "^16.4.4"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
     "typescript": "^5.3.3"
+  },
+  "keywords": [
+    "linear",
+    "mcp",
+    "model-context-protocol",
+    "cli"
+  ],
+  "author": "Ibraheem Ahmed",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ibraheem4/linear-mcp"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
