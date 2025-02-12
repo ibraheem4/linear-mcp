@@ -51,20 +51,6 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
-      name: "get_issue",
-      description: "Get details of a specific issue including images",
-      inputSchema: {
-        type: "object",
-        properties: {
-          issueId: {
-            type: "string",
-            description: "Issue ID",
-          },
-        },
-        required: ["issueId"],
-      },
-    },
-    {
       name: "create_issue",
       description: "Create a new issue in Linear",
       inputSchema: {
