@@ -21,26 +21,23 @@ A Model Context Protocol (MCP) server that provides tools for interacting with L
 
 ## Prerequisites
 
-- Node.js (v16 or higher)
+- Node.js (v18 or higher)
 - A Linear account with API access
 - Linear API key with appropriate permissions
 
 ## Installation
 
-1. Clone the repository:
+Run directly with npx:
+
 ```bash
-git clone [repository-url]
-cd linear-server
+npx @ibraheem4/linear-mcp
 ```
 
-2. Install dependencies:
-```bash
-npm install
-```
+Or install globally:
 
-3. Build the project:
 ```bash
-npm run build
+npm install -g @ibraheem4/linear-mcp
+linear-mcp
 ```
 
 ## Configuration
@@ -50,16 +47,21 @@ npm run build
    - Navigate to the API section
    - Generate a new API key with appropriate permissions
 
-2. Configure the MCP server in your settings file based on your client:
+2. Create a .env file in your project directory:
+```bash
+LINEAR_API_KEY=your-api-key-here
+```
+
+3. Configure the MCP server in your settings file based on your client:
 
 ### For Cline (VS Code Extension)
 Location: `~/Library/Application Support/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/cline_mcp_settings.json`
 ```json
 {
   "mcpServers": {
-    "linear-server": {
+    "linear": {
       "command": "node",
-      "args": ["/path/to/linear-server/build/index.js"],
+      "args": ["build/index.js"],
       "env": {
         "LINEAR_API_KEY": "your-api-key-here"
       },
@@ -75,9 +77,9 @@ Location: `~/Library/Application Support/Roo Cline/settings/cline_mcp_settings.j
 ```json
 {
   "mcpServers": {
-    "linear-server": {
+    "linear": {
       "command": "node",
-      "args": ["/path/to/linear-server/build/index.js"],
+      "args": ["build/index.js"],
       "env": {
         "LINEAR_API_KEY": "your-api-key-here"
       },
@@ -94,9 +96,9 @@ Location: `~/Library/Application Support/Roo Cline/settings/cline_mcp_settings.j
 ```json
 {
   "mcpServers": {
-    "linear-server": {
+    "linear": {
       "command": "node",
-      "args": ["/path/to/linear-server/build/index.js"],
+      "args": ["build/index.js"],
       "env": {
         "LINEAR_API_KEY": "your-api-key-here"
       },
@@ -158,9 +160,44 @@ Lists all projects with optional filtering.
 }
 ```
 
+### search_issues
+Search for issues using a text query.
+```typescript
+{
+  query: string;       // Required: Search query text
+  first?: number;      // Optional: Number of results to return (default: 50)
+}
+```
+
+### get_issue
+Get detailed information about a specific issue.
+```typescript
+{
+  issueId: string;     // Required: Issue ID
+}
+```
+
 ## Development
 
-For development with auto-rebuild:
+For local development:
+
+1. Clone the repository:
+```bash
+git clone https://github.com/ibraheem4/linear-mcp
+cd linear-mcp
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Create a .env file with your Linear API key:
+```bash
+echo "LINEAR_API_KEY=your-api-key-here" > .env
+```
+
+4. Start development with auto-rebuild:
 ```bash
 npm run watch
 ```
@@ -191,5 +228,6 @@ Built with:
 - TypeScript
 - Linear SDK (@linear/sdk v37.0.0)
 - MCP SDK (@modelcontextprotocol/sdk v0.6.0)
+- dotenv for environment variable management
 
 The server uses stdio for communication and implements the Model Context Protocol for seamless integration with AI agents.

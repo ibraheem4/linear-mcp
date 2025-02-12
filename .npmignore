@@ -1,0 +1,16 @@
+# Source
+src/
+
+# Development
+.gitignore
+tsconfig.json
+*.log
+.env*
+!.env.example
+
+# Editor
+.vscode/
+.idea/
+
+# Don't ignore build directory (override .gitignore)
+!build/
