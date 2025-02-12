@@ -25,34 +25,26 @@ A Model Context Protocol (MCP) server that provides tools for interacting with L
 - A Linear account with API access
 - Linear API key with appropriate permissions
 
-## Installation
+## Installation & Configuration
 
-Run directly with npx:
+1. Copy .env.example to .env and add your Linear API key:
+```bash
+cp .env.example .env
+```
 
+Then edit .env to add your Linear API key:
+```
+LINEAR_API_KEY=your-api-key-here
+```
+
+2. Run the server using npx:
 ```bash
 npx @ibraheem4/linear-mcp
 ```
 
-Or install globally:
+The server will automatically read the LINEAR_API_KEY from your .env file.
 
-```bash
-npm install -g @ibraheem4/linear-mcp
-linear-mcp
-```
-
-## Configuration
-
-1. Obtain a Linear API key:
-   - Go to your Linear workspace settings
-   - Navigate to the API section
-   - Generate a new API key with appropriate permissions
-
-2. Create a .env file in your project directory:
-```bash
-LINEAR_API_KEY=your-api-key-here
-```
-
-3. Configure the MCP server in your settings file based on your client:
+## MCP Client Configuration
 
 ### For Cline (VS Code Extension)
 Location: `~/Library/Application Support/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/cline_mcp_settings.json`
@@ -60,8 +52,8 @@ Location: `~/Library/Application Support/Code/User/globalStorage/rooveterinaryin
 {
   "mcpServers": {
     "linear": {
-      "command": "node",
-      "args": ["build/index.js"],
+      "command": "npx",
+      "args": ["-y", "@ibraheem4/linear-mcp"],
       "env": {
         "LINEAR_API_KEY": "your-api-key-here"
       },
@@ -78,8 +70,8 @@ Location: `~/Library/Application Support/Roo Cline/settings/cline_mcp_settings.j
 {
   "mcpServers": {
     "linear": {
-      "command": "node",
-      "args": ["build/index.js"],
+      "command": "npx",
+      "args": ["-y", "@ibraheem4/linear-mcp"],
       "env": {
         "LINEAR_API_KEY": "your-api-key-here"
       },
@@ -97,8 +89,8 @@ Location: `~/Library/Application Support/Roo Cline/settings/cline_mcp_settings.j
 {
   "mcpServers": {
     "linear": {
-      "command": "node",
-      "args": ["build/index.js"],
+      "command": "npx",
+      "args": ["-y", "@ibraheem4/linear-mcp"],
       "env": {
         "LINEAR_API_KEY": "your-api-key-here"
       },
@@ -192,9 +184,9 @@ cd linear-mcp
 npm install
 ```
 
-3. Create a .env file with your Linear API key:
+3. Copy .env.example and configure your Linear API key:
 ```bash
-echo "LINEAR_API_KEY=your-api-key-here" > .env
+cp .env.example .env
 ```
 
 4. Start development with auto-rebuild:
