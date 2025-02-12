@@ -1,9 +1,11 @@
 {
   "name": "@ibraheem4/linear-mcp",
-  "version": "37.0.6",
+  "version": "37.0.7",
   "description": "A Linear MCP server for interacting with Linear's API",
   "type": "module",
-  "bin": "./build/index.js",
+  "bin": {
+    "linear-mcp": "./build/index.js"
+  },
   "files": [
     "build"
   ],
