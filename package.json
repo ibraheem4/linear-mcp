@@ -2,6 +2,7 @@
   "name": "@ibraheem4/linear-mcp",
   "version": "37.0.7",
   "description": "A Linear MCP server for interacting with Linear's API",
+  "main": "./build/index.js",
   "type": "module",
   "bin": {
     "linear-mcp": "./build/index.js"
@@ -13,15 +14,25 @@
     "build": "tsc && chmod +x build/index.js",
     "prepare": "npm run build",
     "watch": "tsc --watch",
-    "inspector": "npx @modelcontextprotocol/inspector build/index.js"
+    "inspector": "npx @modelcontextprotocol/inspector build/index.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "publish:patch": "npm version patch && npm publish",
+    "publish:minor": "npm version minor && npm publish",
+    "publish:major": "npm version major && npm publish",
+    "publish:script": "./scripts/publish.sh"
   },
   "dependencies": {
     "@linear/sdk": "37.0.0",
-    "@modelcontextprotocol/sdk": "0.6.0",
-    "dotenv": "^16.4.4"
+    "@modelcontextprotocol/sdk": "^1.4.0",
+    "dotenv": "^16.4.4",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
+    "@types/jest": "^29.5.12",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
     "typescript": "^5.3.3"
   },
   "keywords": [
