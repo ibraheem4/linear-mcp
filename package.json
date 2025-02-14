@@ -1,6 +1,6 @@
 {
   "name": "@ibraheem4/linear-mcp",
-  "version": "37.3.4",
+  "version": "37.3.5",
   "description": "A Linear MCP server for interacting with Linear's API",
   "main": "./build/index.js",
   "type": "module",
