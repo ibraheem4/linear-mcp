@@ -25,12 +25,13 @@
   "dependencies": {
     "@linear/sdk": "37.0.0",
     "@modelcontextprotocol/sdk": "^1.4.0",
+    "@octokit/rest": "21.1.0",
     "dotenv": "^16.4.4",
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/node": "^20.11.24",
     "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.24",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.2",
     "typescript": "^5.3.3"
