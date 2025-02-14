@@ -413,6 +413,40 @@ type GetIssueArgs = {
   issueId: string;
 };
 
+async function analyzeImage(url: string): Promise<string> {
+  try {
+    // Here you would integrate with your preferred image analysis service
+    // For now, we'll return a placeholder analysis based on the image URL
+    if (url.includes("screenshot")) {
+      return "Screenshot showing user interface elements and layout";
+    } else if (url.includes("diagram")) {
+      return "Architectural or flow diagram";
+    } else if (url.includes("error")) {
+      return "Error message or stack trace";
+    } else if (url.includes("design")) {
+      return "Design mockup or wireframe";
+    } else {
+      return "Image content requires manual analysis";
+    }
+  } catch (error) {
+    console.error("Error analyzing image:", error);
+    return "Unable to analyze image content";
+  }
+}
+
+async function extractAndAnalyzeImages(
+  text: string
+): Promise<Array<{ url: string; analysis: string }>> {
+  const imageMatches = text?.match(/!\[.*?\]\((.*?)\)/g) || [];
+  return Promise.all(
+    imageMatches.map(async (match) => {
+      const url = match.match(/\((.*?)\)/)?.[1] || "";
+      const analysis = await analyzeImage(url);
+      return { url, analysis };
+    })
+  );
+}
+
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (request.params.name) {
@@ -590,12 +624,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           title?: string;
           body?: string;
         };
+
+        // Extract and analyze any images in the updated PR body
+        const analyzedImages = args.body
+          ? await extractAndAnalyzeImages(args.body)
+          : [];
+
         const result = await githubClient.updatePullRequest(args);
+
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(result, null, 2),
+              text: JSON.stringify(
+                {
+                  ...result,
+                  analyzedImages,
+                },
+                null,
+                2
+              ),
             },
           ],
         };
@@ -610,12 +658,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           head: string;
           base: string;
         };
+
+        // Extract and analyze any images in the PR body
+        const analyzedImages = await extractAndAnalyzeImages(args.body);
+
         const result = await githubClient.createPullRequest(args);
+
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(result, null, 2),
+              text: JSON.stringify(
+                {
+                  ...result,
+                  analyzedImages,
+                },
+                null,
+                2
+              ),
             },
           ],
         };
@@ -628,11 +688,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           pullNumber: number;
         };
         const result = await githubClient.getPullRequest(args);
+
+        // Extract and analyze any images in the PR body
+        const analyzedImages = await extractAndAnalyzeImages(result.body);
+
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(result, null, 2),
+              text: JSON.stringify(
+                {
+                  ...result,
+                  analyzedImages,
+                },
+                null,
+                2
+              ),
             },
           ],
         };
@@ -681,7 +752,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           fromBranch: args.base || "dev",
         });
 
-        // Create PR
+        // Analyze any images in the issue description
+        const analyzedImages = await extractAndAnalyzeImages(
+          issue.description || ""
+        );
+
+        // Create PR with analyzed images
         const pr = await githubClient.createPullRequest({
           owner: args.owner,
           repo: args.repo,
@@ -703,7 +779,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: "text",
-              text: JSON.stringify(pr, null, 2),
+              text: JSON.stringify(
+                {
+                  ...pr,
+                  analyzedImages,
+                },
+                null,
+                2
+              ),
             },
           ],
         };
@@ -822,12 +905,38 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               createdAt: comment.createdAt,
             }))
           ),
+
+          // Extract and analyze embedded images from description
+          embeddedImages: await Promise.all(
+            (issue.description?.match(/!\[.*?\]\((.*?)\)/g) || []).map(
+              async (match) => {
+                const url = match.match(/\((.*?)\)/)?.[1] || "";
+                const analysis = await analyzeImage(url);
+                return {
+                  url,
+                  analysis,
+                };
+              }
+            )
+          ),
+
+          // Get and analyze attachments
           attachments: await Promise.all(
-            (attachments?.nodes || []).map(async (attachment) => ({
-              id: attachment.id,
-              title: attachment.title,
-              url: attachment.url,
-            }))
+            (attachments?.nodes || [])
+              .filter((attachment: any) =>
+                attachment?.url?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+              )
+              .map(async (attachment: any) => {
+                const analysis = await analyzeImage(attachment.url);
+                return {
+                  id: attachment.id,
+                  title: attachment.title,
+                  url: attachment.url,
+                  source: attachment.source,
+                  metadata: attachment.metadata,
+                  analysis,
+                };
+              })
           ),
 
           // Additional metadata

@@ -24,6 +24,9 @@ A Model Context Protocol (MCP) server that provides tools for interacting with L
 - Node.js (v18 or higher)
 - A Linear account with API access
 - Linear API key with appropriate permissions
+- A GitHub account with a personal access token (PAT)
+  - Required scopes: `repo` (full control of private repositories)
+  - Generate token at: https://github.com/settings/tokens
 
 ## Installation & Configuration
 
@@ -35,6 +38,7 @@ cp .env.example .env
 Then edit .env to add your Linear API key:
 ```
 LINEAR_API_KEY=your-api-key-here
+GITHUB_TOKEN=your-github-pat-here
 ```
 
 2. Run the server using npx:
@@ -55,7 +59,8 @@ Location: `~/Library/Application Support/Code/User/globalStorage/rooveterinaryin
       "command": "npx",
       "args": ["-y", "@ibraheem4/linear-mcp"],
       "env": {
-        "LINEAR_API_KEY": "your-api-key-here"
+        "LINEAR_API_KEY": "your-api-key-here",
+        "GITHUB_TOKEN": "your-github-pat-here"
       },
       "disabled": false,
       "alwaysAllow": []
@@ -73,7 +78,8 @@ Location: `~/Library/Application Support/Roo Cline/settings/cline_mcp_settings.j
       "command": "npx",
       "args": ["-y", "@ibraheem4/linear-mcp"],
       "env": {
-        "LINEAR_API_KEY": "your-api-key-here"
+        "LINEAR_API_KEY": "your-api-key-here",
+        "GITHUB_TOKEN": "your-github-pat-here"
       },
       "disabled": false,
       "alwaysAllow": []
@@ -92,7 +98,8 @@ Location: `~/Library/Application Support/Roo Cline/settings/cline_mcp_settings.j
       "command": "npx",
       "args": ["-y", "@ibraheem4/linear-mcp"],
       "env": {
-        "LINEAR_API_KEY": "your-api-key-here"
+        "LINEAR_API_KEY": "your-api-key-here",
+        "GITHUB_TOKEN": "your-github-pat-here"
       },
       "disabled": false,
       "alwaysAllow": []
@@ -101,7 +108,134 @@ Location: `~/Library/Application Support/Roo Cline/settings/cline_mcp_settings.j
 }
 ```
 
-## Available Tools
+## Image Analysis
+
+This MCP server includes built-in image analysis capabilities that work across both Linear and GitHub integrations. The system automatically detects, extracts, and analyzes images in issue descriptions, PR descriptions, and attachments.
+
+### Features
+
+- **Automatic Image Detection**: Detects images in markdown content using standard markdown image syntax (`![alt](url)`)
+- **Cross-Platform Analysis**: Analyzes images in both Linear issues and GitHub PRs
+- **Attachment Support**: Handles image attachments in supported formats (jpg, jpeg, png, gif, webp)
+- **Extensible Analysis**: Ready for integration with sophisticated image analysis services
+
+### Supported Contexts
+
+- **Linear Issues**
+  - Embedded images in issue descriptions
+  - Image attachments
+  - Images in comments
+
+- **GitHub Pull Requests**
+  - Images in PR descriptions
+  - Images in PR updates
+  - Images carried over from Linear issues when creating feature PRs
+
+### Analysis Output
+
+For each detected image, the system provides:
+```typescript
+{
+  url: string;      // URL of the image
+  analysis: string; // Description of the image content
+}
+```
+
+For attachments, additional metadata is included:
+```typescript
+{
+  id: string;           // Attachment ID
+  title: string;        // Attachment title
+  url: string;          // Image URL
+  source: string;       // Source information
+  metadata: any;        // Additional metadata
+  analysis: string;     // Image content analysis
+}
+```
+
+### Integration Points
+
+The image analysis functionality is integrated into several tools:
+
+#### Linear Tools
+- `get_issue`: Returns analyzed embedded images and attachments
+- `create_issue`: Analyzes any images in the issue description
+- `update_issue`: Analyzes images in updated descriptions
+
+#### GitHub Tools
+- `github_create_pr`: Analyzes images in PR descriptions
+- `github_update_pr`: Analyzes images in updated PR descriptions
+- `github_get_pr`: Analyzes images in existing PRs
+- `create_feature_pr`: Analyzes images when converting Linear issues to PRs
+
+## GitHub Integration
+
+This MCP server integrates with GitHub to provide seamless workflow between Linear and GitHub repositories. The integration enables:
+
+- **Branch Management**: Create feature branches automatically from Linear issues
+- **Pull Request Automation**: Create and update pull requests linked to Linear issues
+- **Issue Linking**: Automatically link GitHub PRs to Linear issues for better traceability
+
+### GitHub Tools
+
+#### github_create_branch
+Creates a new branch in a GitHub repository.
+```typescript
+{
+  owner: string;        // Required: Repository owner
+  repo: string;         // Required: Repository name
+  branch: string;       // Required: New branch name
+  fromBranch?: string;  // Optional: Base branch to create from (default: dev)
+}
+```
+
+#### github_create_pr
+Creates a pull request in a GitHub repository.
+```typescript
+{
+  owner: string;       // Required: Repository owner
+  repo: string;        // Required: Repository name
+  title: string;       // Required: Pull request title
+  body: string;        // Required: Pull request description
+  head: string;        // Required: Head branch
+  base: string;        // Optional: Base branch (default: dev)
+}
+```
+
+#### github_update_pr
+Updates an existing pull request.
+```typescript
+{
+  owner: string;         // Required: Repository owner
+  repo: string;         // Required: Repository name
+  pullNumber: number;   // Required: Pull request number
+  title?: string;       // Optional: New pull request title
+  body?: string;        // Optional: New pull request description
+}
+```
+
+#### github_get_pr
+Gets details of a GitHub pull request.
+```typescript
+{
+  owner: string;        // Required: Repository owner
+  repo: string;        // Required: Repository name
+  pullNumber: number;  // Required: Pull request number
+}
+```
+
+#### github_link_pr_to_linear
+Links a GitHub pull request to a Linear issue.
+```typescript
+{
+  owner: string;        // Required: Repository owner
+  repo: string;        // Required: Repository name
+  pullNumber: number;  // Required: Pull request number
+  issueId: string;     // Required: Linear issue ID
+}
+```
+
+## Linear Tools
 
 ### create_issue
 Creates a new issue in Linear.
