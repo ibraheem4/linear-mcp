@@ -417,9 +417,12 @@ import axios from "axios";
 
 async function analyzeImage(url: string): Promise<string> {
   try {
-    // Fetch the image data
+    // Fetch the image data with Linear API token
     const response = await axios.get<Buffer>(url, {
       responseType: "arraybuffer",
+      headers: {
+        Authorization: `Bearer ${LINEAR_API_KEY}`,
+      },
     });
 
     // Convert image data to base64
