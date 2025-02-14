@@ -26,6 +26,8 @@
     "@linear/sdk": "37.0.0",
     "@modelcontextprotocol/sdk": "^1.4.0",
     "@octokit/rest": "21.1.0",
+    "@types/axios": "0.9.36",
+    "axios": "1.7.9",
     "dotenv": "^16.4.4",
     "zod": "^3.22.4"
   },

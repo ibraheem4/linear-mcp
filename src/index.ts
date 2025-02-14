@@ -413,24 +413,31 @@ type GetIssueArgs = {
   issueId: string;
 };
 
+import axios from "axios";
+
 async function analyzeImage(url: string): Promise<string> {
   try {
-    // Here you would integrate with your preferred image analysis service
-    // For now, we'll return a placeholder analysis based on the image URL
-    if (url.includes("screenshot")) {
-      return "Screenshot showing user interface elements and layout";
-    } else if (url.includes("diagram")) {
-      return "Architectural or flow diagram";
-    } else if (url.includes("error")) {
-      return "Error message or stack trace";
-    } else if (url.includes("design")) {
-      return "Design mockup or wireframe";
-    } else {
-      return "Image content requires manual analysis";
-    }
-  } catch (error) {
-    console.error("Error analyzing image:", error);
-    return "Unable to analyze image content";
+    // Fetch the image data
+    const response = await axios.get(url, {
+      responseType: "arraybuffer",
+    });
+
+    // Convert image data to base64
+    const imageBase64 = Buffer.from(response.data).toString("base64");
+
+    // Return the base64 data for Claude to analyze
+    // Claude will receive this data and use its vision capabilities
+    // to analyze the image directly
+    return `Base64 image data: ${imageBase64}`;
+  } catch (error: unknown) {
+    console.error("Error fetching image:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return [
+      "Image Analysis Error:",
+      "- Unable to fetch image content",
+      "- Error occurred during fetch",
+      `- Error details: ${errorMessage}`,
+    ].join("\n");
   }
 }
 
