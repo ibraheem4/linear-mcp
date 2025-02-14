@@ -418,12 +418,12 @@ import axios from "axios";
 async function analyzeImage(url: string): Promise<string> {
   try {
     // Fetch the image data
-    const response = await axios.get(url, {
+    const response = await axios.get<Buffer>(url, {
       responseType: "arraybuffer",
     });
 
     // Convert image data to base64
-    const imageBase64 = Buffer.from(response.data).toString("base64");
+    const imageBase64 = Buffer.from(response.data as Buffer).toString("base64");
 
     // Return the base64 data for Claude to analyze
     // Claude will receive this data and use its vision capabilities
