@@ -11,26 +11,18 @@ import {
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
 import { LinearClient } from "@linear/sdk";
-import { GitHubClient } from "./github.js";
 
 config({ path: ".env" });
 
 const LINEAR_API_KEY = process.env.LINEAR_API_KEY;
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
 if (!LINEAR_API_KEY) {
   throw new Error("LINEAR_API_KEY environment variable is required");
 }
 
-if (!GITHUB_TOKEN) {
-  throw new Error("GITHUB_TOKEN environment variable is required");
-}
-
 const linearClient = new LinearClient({
   apiKey: LINEAR_API_KEY,
 });
-
-const githubClient = new GitHubClient(GITHUB_TOKEN);
 
 const server = new Server(
   {
@@ -46,144 +38,6 @@ const server = new Server(
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
-    {
-      name: "github_create_branch",
-      description: "Create a new branch in a GitHub repository",
-      inputSchema: {
-        type: "object",
-        properties: {
-          owner: {
-            type: "string",
-            description: "Repository owner",
-          },
-          repo: {
-            type: "string",
-            description: "Repository name",
-          },
-          branch: {
-            type: "string",
-            description: "New branch name",
-          },
-          fromBranch: {
-            type: "string",
-            description: "Base branch to create from (default: dev)",
-          },
-        },
-        required: ["owner", "repo", "branch"],
-      },
-    },
-    {
-      name: "github_update_pr",
-      description: "Update an existing pull request in a GitHub repository",
-      inputSchema: {
-        type: "object",
-        properties: {
-          owner: {
-            type: "string",
-            description: "Repository owner",
-          },
-          repo: {
-            type: "string",
-            description: "Repository name",
-          },
-          pullNumber: {
-            type: "number",
-            description: "Pull request number",
-          },
-          title: {
-            type: "string",
-            description: "New pull request title",
-          },
-          body: {
-            type: "string",
-            description: "New pull request description",
-          },
-        },
-        required: ["owner", "repo", "pullNumber"],
-      },
-    },
-    {
-      name: "github_create_pr",
-      description: "Create a pull request in a GitHub repository",
-      inputSchema: {
-        type: "object",
-        properties: {
-          owner: {
-            type: "string",
-            description: "Repository owner",
-          },
-          repo: {
-            type: "string",
-            description: "Repository name",
-          },
-          title: {
-            type: "string",
-            description: "Pull request title",
-          },
-          body: {
-            type: "string",
-            description: "Pull request description",
-          },
-          head: {
-            type: "string",
-            description: "Head branch",
-          },
-          base: {
-            type: "string",
-            description: "Base branch (default: dev)",
-          },
-        },
-        required: ["owner", "repo", "title", "head"],
-      },
-    },
-    {
-      name: "github_get_pr",
-      description: "Get details of a GitHub pull request",
-      inputSchema: {
-        type: "object",
-        properties: {
-          owner: {
-            type: "string",
-            description: "Repository owner",
-          },
-          repo: {
-            type: "string",
-            description: "Repository name",
-          },
-          pullNumber: {
-            type: "number",
-            description: "Pull request number",
-          },
-        },
-        required: ["owner", "repo", "pullNumber"],
-      },
-    },
-    {
-      name: "github_link_pr_to_linear",
-      description: "Link a GitHub pull request to a Linear issue",
-      inputSchema: {
-        type: "object",
-        properties: {
-          owner: {
-            type: "string",
-            description: "Repository owner",
-          },
-          repo: {
-            type: "string",
-            description: "Repository name",
-          },
-          pullNumber: {
-            type: "number",
-            description: "Pull request number",
-          },
-          issueId: {
-            type: "string",
-            description: "Linear issue ID",
-          },
-        },
-        required: ["owner", "repo", "pullNumber", "issueId"],
-      },
-    },
     {
       name: "get_issue",
       description: "Get details of a specific issue including images",
@@ -342,33 +196,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
-      name: "create_feature_pr",
-      description: "Create a feature PR for a Linear issue",
-      inputSchema: {
-        type: "object",
-        properties: {
-          issueId: {
-            type: "string",
-            description: "Linear Issue ID (e.g. ARC-114)",
-          },
-          owner: {
-            type: "string",
-            description: "GitHub repository owner",
-          },
-          repo: {
-            type: "string",
-            description: "GitHub repository name",
-          },
-          base: {
-            type: "string",
-            description: "Base branch to create PR against",
-            default: "dev",
-          },
-        },
-        required: ["issueId", "owner", "repo"],
-      },
-    },
-    {
       name: "fetch_document",
       description:
         "Fetch a document from Linear that matches a given name using regex",
@@ -419,13 +246,6 @@ type ListProjectsArgs = {
 type SearchIssuesArgs = {
   query: string;
   first?: number;
-};
-
-type CreateFeaturePrArgs = {
-  issueId: string;
-  owner: string;
-  repo: string;
-  base?: string;
 };
 
 type GetIssueArgs = {
@@ -622,200 +442,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: "text",
               text: JSON.stringify(formattedResults, null, 2),
-            },
-          ],
-        };
-      }
-
-      case "github_create_branch": {
-        const args = request.params.arguments as {
-          owner: string;
-          repo: string;
-          branch: string;
-          fromBranch?: string;
-        };
-        const result = await githubClient.createBranch(args);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      }
-
-      case "github_update_pr": {
-        const args = request.params.arguments as {
-          owner: string;
-          repo: string;
-          pullNumber: number;
-          title?: string;
-          body?: string;
-        };
-
-        // Extract and analyze any images in the updated PR body
-        const analyzedImages = args.body
-          ? await extractAndAnalyzeImages(args.body)
-          : [];
-
-        const result = await githubClient.updatePullRequest(args);
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  ...result,
-                  analyzedImages,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        };
-      }
-
-      case "github_create_pr": {
-        const args = request.params.arguments as {
-          owner: string;
-          repo: string;
-          title: string;
-          body: string;
-          head: string;
-          base: string;
-        };
-
-        // Extract and analyze any images in the PR body
-        const analyzedImages = await extractAndAnalyzeImages(args.body);
-
-        const result = await githubClient.createPullRequest(args);
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  ...result,
-                  analyzedImages,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        };
-      }
-
-      case "github_get_pr": {
-        const args = request.params.arguments as {
-          owner: string;
-          repo: string;
-          pullNumber: number;
-        };
-        const result = await githubClient.getPullRequest(args);
-
-        // Extract and analyze any images in the PR body
-        const analyzedImages = await extractAndAnalyzeImages(result.body);
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  ...result,
-                  analyzedImages,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        };
-      }
-
-      case "github_link_pr_to_linear": {
-        const args = request.params.arguments as {
-          owner: string;
-          repo: string;
-          pullNumber: number;
-          issueId: string;
-        };
-        const result = await githubClient.linkPullRequestToLinear(args);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      }
-
-      case "create_feature_pr": {
-        const args = request.params.arguments as unknown as CreateFeaturePrArgs;
-        if (!args?.issueId || !args?.owner || !args?.repo) {
-          throw new Error("issueId, owner, and repo are required");
-        }
-
-        // Get Linear issue details
-        const issue = await linearClient.issue(args.issueId);
-        if (!issue) {
-          throw new Error(`Issue ${args.issueId} not found`);
-        }
-
-        const branchName = issue.branchName;
-        if (!branchName) {
-          throw new Error(`Branch name not found for issue ${args.issueId}`);
-        }
-
-        // Create branch
-        await githubClient.createBranch({
-          owner: args.owner,
-          repo: args.repo,
-          branch: branchName,
-          fromBranch: args.base || "dev",
-        });
-
-        // Analyze any images in the issue description
-        const analyzedImages = await extractAndAnalyzeImages(
-          issue.description || ""
-        );
-
-        // Create PR with analyzed images
-        const pr = await githubClient.createPullRequest({
-          owner: args.owner,
-          repo: args.repo,
-          title: `[${args.issueId}] ${issue.title}`,
-          body: `Fixes ${issue.url}\n\n${issue.description || ""}`,
-          head: branchName,
-          base: args.base || "dev",
-        });
-
-        // Link PR to Linear issue
-        await githubClient.linkPullRequestToLinear({
-          owner: args.owner,
-          repo: args.repo,
-          pullNumber: pr.number,
-          issueId: args.issueId,
-        });
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  ...pr,
-                  analyzedImages,
-                },
-                null,
-                2
-              ),
             },
           ],
         };
