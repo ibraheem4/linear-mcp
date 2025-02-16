@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
+import { config } from "dotenv";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
@@ -10,6 +12,8 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { LinearClient } from "@linear/sdk";
 import { GitHubClient } from "./github.js";
+
+config({ path: ".env" });
 
 const LINEAR_API_KEY = process.env.LINEAR_API_KEY;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -362,6 +366,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           },
         },
         required: ["issueId", "owner", "repo"],
+      },
+    },
+    {
+      name: "fetch_document",
+      description:
+        "Fetch a document from Linear that matches a given name using regex",
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Partial or full document name to search for",
+          },
+        },
+        required: ["name"],
       },
     },
   ],
@@ -1006,6 +1025,67 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      case "fetch_document": {
+        const args = request.params.arguments as { name: string };
+        if (!args?.name) {
+          throw new Error("Document name is required");
+        }
+
+        // Search for documents using the provided name
+        const documents = await linearClient.documents({
+          filter: {
+            title: { contains: args.name },
+          },
+        });
+
+        if (!documents.nodes || documents.nodes.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  { message: "No matching documents found" },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
+        }
+
+        // Get full details of the first matching document
+        const document = documents.nodes[0];
+        const creator = await document.creator;
+
+        const documentDetails = {
+          id: document.id,
+          title: document.title,
+          content: document.content,
+          icon: document.icon,
+          color: document.color,
+          createdAt: document.createdAt,
+          updatedAt: document.updatedAt,
+          creator: creator
+            ? {
+                id: creator.id,
+                name: creator.name,
+                email: creator.email,
+              }
+            : null,
+          // Extract and analyze any embedded images
+          embeddedImages: await extractAndAnalyzeImages(document.content || ""),
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(documentDetails, null, 2),
+            },
+          ],
+        };
+      }
+
       default:
         throw new McpError(
           ErrorCode.MethodNotFound,
@@ -1029,7 +1109,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Linear MCP server running on stdio");
+  console.log("Linear MCP server running on stdio");
 }
 
 main().catch((error) => {
