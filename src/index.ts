@@ -93,6 +93,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             },
             description: "Label IDs to apply (optional)",
           },
+          status:{
+            type: "string",
+            description: "Status of the issue (optional)",
+          }
         },
         required: ["title", "teamId"],
       },
@@ -225,6 +229,7 @@ type CreateIssueArgs = {
   assigneeId?: string;
   priority?: number;
   labels?: string[];
+  status?: string;
 };
 
 type ListIssuesArgs = {
@@ -274,6 +279,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           assigneeId: args.assigneeId,
           priority: args.priority,
           labelIds: args.labels,
+          status: args.status,
         });
 
         return {
