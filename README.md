@@ -1,6 +1,6 @@
 # Linear MCP Server
 
-> Note: This is a custom implementation. For the official Cline Linear MCP server, see [cline/linear-mcp](https://github.com/cline/linear-mcp).
+> Note: This is a custom implementation. For the Cline Linear MCP server, see [cline/linear-mcp](https://github.com/cline/linear-mcp) or [Linear's Blog Post about MCP](https://linear.app/changelog/2025-05-01-mcp).
 
 <a href="https://glama.ai/mcp/servers/71fqw0uqmx"> <img width="380" height="200" src="https://glama.ai/mcp/servers/71fqw0uqmx/badge" />
 
